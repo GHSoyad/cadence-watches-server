@@ -16,16 +16,29 @@ async function run() {
     try {
         const categoriesCollection = client.db("cadence-watches").collection("categories");
         const usersCollection = client.db("cadence-watches").collection("users");
+        const productsCollection = client.db("cadence-watches").collection("products");
 
         app.get('/categories', async (req, res) => {
             const query = {};
-            const result = await categoriesCollection.find().toArray();
+            const result = await categoriesCollection.find(query).toArray();
             res.send(result);
         })
 
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            const result = await productsCollection.insertOne(product);
+            res.send(result);
+        })
+
+        app.get('/products', async (req, res) => {
+            const query = {};
+            const result = await productsCollection.find(query).toArray();
             res.send(result);
         })
 
