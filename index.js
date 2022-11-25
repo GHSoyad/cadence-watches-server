@@ -39,6 +39,7 @@ async function run() {
         const categoriesCollection = client.db("cadence-watches").collection("categories");
         const usersCollection = client.db("cadence-watches").collection("users");
         const productsCollection = client.db("cadence-watches").collection("products");
+        const ordersCollection = client.db("cadence-watches").collection("orders");
 
         app.get('/categories', async (req, res) => {
             const query = {};
@@ -59,6 +60,15 @@ async function run() {
             res.send(result);
         })
 
+        app.get('/role', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await usersCollection.findOne(query);
+            if (result) {
+                res.send(result);
+            }
+        })
+
         app.post('/products', async (req, res) => {
             const product = req.body;
             const result = await productsCollection.insertOne(product);
@@ -68,6 +78,28 @@ async function run() {
         app.get('/products', async (req, res) => {
             const query = {};
             const result = await productsCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.post('/orders', verifyJWT, async (req, res) => {
+            const order = req.body;
+            const productId = order.productId;
+            console.log(productId);
+            const filter = { _id: ObjectId(productId) };
+            const updateProduct = {
+                $set: {
+                    status: 'sold'
+                }
+            }
+            const updatedProduct = await productsCollection.updateOne(filter, updateProduct);
+            const result = await ordersCollection.insertOne(order);
+            res.send(result);
+        })
+
+        app.get('/orders', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const query = { buyerEmail: email };
+            const result = await ordersCollection.find(query).toArray();
             res.send(result);
         })
 
