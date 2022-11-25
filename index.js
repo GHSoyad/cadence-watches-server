@@ -60,7 +60,42 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/role', async (req, res) => {
+        app.get('/users', async (req, res) => {
+            let query = {}
+            if (req.query.role) {
+                query = { role: req.query.role }
+            }
+            const result = await usersCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.delete('/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        app.patch('/users', async (req, res) => {
+            const email = req.query.email;
+            const filterUser = { email: email };
+            const updateUser = {
+                $set: {
+                    status: 'verified'
+                }
+            }
+            const userResult = await usersCollection.updateOne(filterUser, updateUser);
+            const filterProducts = { sellerEmail: email };
+            const updateProducts = {
+                $set: {
+                    sellerStatus: 'verified'
+                }
+            }
+            const productsResult = await productsCollection.updateMany(filterProducts, updateProducts);
+            res.send(userResult);
+        })
+
+        app.get('/user', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await usersCollection.findOne(query);
