@@ -5,6 +5,7 @@ const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.STRIPE_sk);
 
 app.use(cors());
 app.use(express.json());
@@ -31,6 +32,16 @@ app.get('/jwt', (req, res) => {
     res.send({ token });
 })
 
+app.post('/create=payment-intent', async (req, res) => {
+    const { price } = req.body;
+    const amount = (price * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency: "usd",
+    });
+    res.send({ clientSecret: paymentIntent.client_secret })
+})
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.7r6jn89.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
@@ -40,6 +51,7 @@ async function run() {
         const usersCollection = client.db("cadence-watches").collection("users");
         const productsCollection = client.db("cadence-watches").collection("products");
         const ordersCollection = client.db("cadence-watches").collection("orders");
+        const paymentsCollection = client.db("cadence-watches").collection("payments");
 
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
@@ -76,6 +88,13 @@ async function run() {
 
         app.post('/users', async (req, res) => {
             const user = req.body;
+            const email = user.email;
+            const query = { email: email };
+            const filterUser = await usersCollection.findOne(query);
+            if (filterUser) {
+                res.send({ message: 'Registered' })
+                return;
+            }
             const result = await usersCollection.insertOne(user);
             res.send(result);
         })
@@ -164,15 +183,14 @@ async function run() {
 
         app.post('/orders', verifyJWT, async (req, res) => {
             const order = req.body;
+            const email = order.buyerEmail;
             const productId = order.productId;
-            console.log(productId);
-            const filter = { _id: ObjectId(productId) };
-            const updateProduct = {
-                $set: {
-                    status: 'sold'
-                }
+            const query = { buyerEmail: email, productId: productId };
+            const findOrder = await ordersCollection.findOne(query);
+            if (findOrder) {
+                res.send({ message: 'You have already booked this product!' })
+                return;
             }
-            const updatedProduct = await productsCollection.updateOne(filter, updateProduct);
             const result = await ordersCollection.insertOne(order);
             res.send(result);
         })
@@ -181,6 +199,37 @@ async function run() {
             const email = req.query.email;
             const query = { buyerEmail: email };
             const result = await ordersCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.get('/orders/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await ordersCollection.findOne(query);
+            res.send(result);
+        })
+
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const productId = payment.productId;
+            const filterProduct = { _id: ObjectId(productId) };
+            const updateProduct = {
+                $set: {
+                    status: 'sold'
+                }
+            }
+            const updatedProduct = await productsCollection.updateOne(filterProduct, updateProduct);
+
+            const orderId = payment.orderId;
+            const filterOrder = { _id: ObjectId(orderId) };
+            const updateOrder = {
+                $set: {
+                    status: 'paid'
+                }
+            }
+            const updatedOrder = await ordersCollection.updateOne(filterOrder, updateOrder);
+
+            const result = await paymentsCollection.insertOne(payment);
             res.send(result);
         })
 
