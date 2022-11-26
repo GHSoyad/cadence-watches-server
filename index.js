@@ -41,6 +41,26 @@ async function run() {
         const productsCollection = client.db("cadence-watches").collection("products");
         const ordersCollection = client.db("cadence-watches").collection("orders");
 
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'Forbidden Access' });
+            }
+            next();
+        }
+
+        const verifySeller = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'seller') {
+                return res.status(403).send({ message: 'Forbidden Access' });
+            }
+            next();
+        }
+
         app.get('/categories', async (req, res) => {
             const query = {};
             const result = await categoriesCollection.find(query).toArray();
@@ -60,7 +80,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             let query = {}
             if (req.query.role) {
                 query = { role: req.query.role }
