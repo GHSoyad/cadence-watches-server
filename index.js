@@ -124,7 +124,7 @@ async function run() {
             }
         })
 
-        app.post('/products', async (req, res) => {
+        app.post('/products', verifyJWT, verifySeller, async (req, res) => {
             const product = req.body;
             const result = await productsCollection.insertOne(product);
             res.send(result);
@@ -132,6 +132,32 @@ async function run() {
 
         app.get('/products', async (req, res) => {
             const query = {};
+            const result = await productsCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.patch('/products/:id', verifyJWT, verifySeller, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const updateProduct = {
+                $set: {
+                    advertise: 'true'
+                }
+            }
+            const result = await productsCollection.updateOne(filter, updateProduct);
+            res.send(result);
+        })
+
+        app.delete('/products/:id', verifyJWT, verifySeller, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await productsCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        app.get('/products/:email', verifyJWT, verifySeller, async (req, res) => {
+            const email = req.params.email;
+            const query = { sellerEmail: email };
             const result = await productsCollection.find(query).toArray();
             res.send(result);
         })
