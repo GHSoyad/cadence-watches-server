@@ -52,6 +52,7 @@ async function run() {
         const productsCollection = client.db("cadence-watches").collection("products");
         const ordersCollection = client.db("cadence-watches").collection("orders");
         const paymentsCollection = client.db("cadence-watches").collection("payments");
+        const reportedProductsCollection = client.db("cadence-watches").collection("reportedProducts");
 
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
@@ -149,8 +150,15 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/products', async (req, res) => {
-            const query = {};
+        app.get('/products/advertised', async (req, res) => {
+            const query = { advertise: 'true', status: 'available' };
+            const result = await productsCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.get('/products/:email', verifyJWT, verifySeller, async (req, res) => {
+            const email = req.params.email;
+            const query = { sellerEmail: email };
             const result = await productsCollection.find(query).toArray();
             res.send(result);
         })
@@ -174,10 +182,17 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/products/:email', verifyJWT, verifySeller, async (req, res) => {
-            const email = req.params.email;
-            const query = { sellerEmail: email };
-            const result = await productsCollection.find(query).toArray();
+        app.post('/products/report', verifyJWT, async (req, res) => {
+            const reportedProduct = req.body;
+            const reporter = reportedProduct.reporter;
+            const productId = reportedProduct.productId;
+            const filter = { reporter: reporter, productId: productId };
+            const findReport = await reportedProductsCollection.findOne(filter);
+            if (findReport) {
+                res.send({ message: 'You have already reported this product!' });
+                return;
+            }
+            const result = await reportedProductsCollection.insertOne(reportedProduct);
             res.send(result);
         })
 
