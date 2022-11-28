@@ -182,7 +182,7 @@ async function run() {
             res.send(result);
         })
 
-        app.post('/products/report', verifyJWT, async (req, res) => {
+        app.post('/report/products', verifyJWT, async (req, res) => {
             const reportedProduct = req.body;
             const reporter = reportedProduct.reporter;
             const productId = reportedProduct.productId;
@@ -194,6 +194,22 @@ async function run() {
             }
             const result = await reportedProductsCollection.insertOne(reportedProduct);
             res.send(result);
+        })
+
+        app.get('/report/products', verifyJWT, verifyAdmin, async (req, res) => {
+            const query = {}
+            const result = await reportedProductsCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.delete('/report/products/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const productId = req.params.id;
+            const queryProduct = { _id: ObjectId(productId) };
+            const queryReport = { productId: productId };
+            const deleteProduct = await productsCollection.deleteOne(queryProduct);
+            const deleteOrder = await ordersCollection.deleteMany(queryReport);
+            const deleteReport = await reportedProductsCollection.deleteMany(queryReport);
+            res.send(deleteReport);
         })
 
         app.post('/orders', verifyJWT, async (req, res) => {
