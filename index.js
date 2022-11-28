@@ -32,7 +32,7 @@ app.get('/jwt', (req, res) => {
     res.send({ token });
 })
 
-app.post('/create=payment-intent', async (req, res) => {
+app.post('/create-payment-intent', async (req, res) => {
     const { price } = req.body;
     const amount = (price * 100);
     const paymentIntent = await stripe.paymentIntents.create({
@@ -178,6 +178,8 @@ async function run() {
         app.delete('/products/:id', verifyJWT, verifySeller, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
+            const queryOrder = { productId: id };
+            const deleteOrder = await ordersCollection.deleteMany(queryOrder);
             const result = await productsCollection.deleteOne(query);
             res.send(result);
         })
